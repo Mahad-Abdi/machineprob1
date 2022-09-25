@@ -18,12 +18,11 @@ func main() {
 		fmt.Println("Please provide line number of config file")
 		return
 	}
-	lineNumber, _ := strconv.Atoi(arguments[1])
-	configLine := readConfig(lineNumber)
-	configLineParsed := parseLine(configLine)
-	//id := configLineParsed[0]
-	//ip := configLineParsed[1]
-	port := ":" + configLineParsed[2]
+	lineNumber := arguments[1]
+	configData := readConfig()
+	//id := configData[lineNumber][0]
+	//hostAddress := configData[lineNumber][1]
+	port := ":" + configData[lineNumber][2]
 	println(port)
 
 	// I'm trying to combine the TCPServer and TCPClient into one file, he said that they both can be in the same file
@@ -40,7 +39,7 @@ func main() {
 			return
 		}
 		// add error catching later
-		destination, _ := strconv.Atoi(textParsed[1])
+		destination := textParsed[1]
 		messageReceived := textParsed[2]
 		if len(arguments) > 2 {
 			for i := 3; i < len(arguments); i++ {
@@ -48,7 +47,8 @@ func main() {
 			}
 
 		}
-		unicastSend(destination, messageReceived)
+		destinationAdress := configData[destination][1]
+		unicastSend(destination, messageReceived, destinationAdress)
 
 	}
 	//go createTCPClient(ip)
@@ -59,31 +59,32 @@ func main() {
 }
 
 // Lines 40-46 & 52-54 from https://stackoverflow.com/questions/8757389/reading-a-file-line-by-line-in-go
-func readConfig(line int) string {
+// Stores the config data into a hashmap key is the line number value is an array with the data arr[0] = ID, arr[1] = hostaddress arr[2] = port
+func readConfig() map[string][]string {
 	file, err := os.Open("config.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
 
+	configData := make(map[string][]string)
 	scanner := bufio.NewScanner(file)
-	// optionally, resize scanner's capacity for lines over 64K, see next example
 	currentLineNum := 0
-	str := ""
+	configLine := ""
 	for scanner.Scan() {
-		if line == currentLineNum {
-			str = string(scanner.Text())
-			return str
-		}
+		configLine = string(scanner.Text())
+		configLineParsed := parseLine(configLine)
+		configData[strconv.Itoa(currentLineNum)] = configLineParsed
 		currentLineNum++
 	}
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
-	return str
+	return configData
 }
 
+// Parses line and stores it in an array
 func parseLine(line string) []string {
 	return strings.Split(line, " ")
 }
@@ -160,14 +161,9 @@ func createTCPClient(CONNECT string, message string) {
 
 }
 
-func unicastSend(destination int, message string) {
-	configLine := readConfig(destination)
-	configLineParsed := parseLine(configLine)
-	//id := configLineParsed[0]
-	//ip := configLineParsed[1]
-	ip := ":" + configLineParsed[2]
-	fmt.Println("Connecting to destination", destination, ip)
-	createTCPClient(ip, message)
+func unicastSend(destination string, message string, hostAddress string) {
+	fmt.Println("Connecting to destination", destination, hostAddress)
+	createTCPClient(hostAddress, message)
 
 }
 
