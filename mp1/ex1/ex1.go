@@ -142,7 +142,10 @@ func createTCPServer(PORT string) {
 
 https://www.linode.com/docs/guides/developing-udp-and-tcp-clients-and-servers-in-go/
 */
-func createTCPClient(CONNECT string, message string) {
+func createTCPClient(CONNECT string, inputMessage message) {
+	message := inputMessage.messageContent
+	id := inputMessage.destinationID
+
 	c, err := net.Dial("tcp", CONNECT)
 	if err != nil {
 		fmt.Println(err)
@@ -156,17 +159,16 @@ func createTCPClient(CONNECT string, message string) {
 			fmt.Println("Error with client", err)
 			return
 		}
-		fmt.Println("Sent ", message)
+		fmt.Println("Sent ", message, "to process", id, " system time is ", time.Now())
 		if strings.TrimSpace(string(message)) == "STOP" {
 			fmt.Println("TCP client exiting...")
 			return
 		}
-		message, _ = bufio.NewReader(c).ReadString('\n')
-		fmt.Println("->: Received response from ", message)
+
 		fmt.Print(">> ")
 
 		message, _ = reader.ReadString('\n')
-		//Redundant
+		//Redundant, here is where we check if the input destination is the same
 		messageParsed := parseLine(message)
 		if len(messageParsed) < 3 {
 			println("Please provide a command in the form send destination message or STOP to stop proccess")
@@ -188,8 +190,7 @@ func createTCPClient(CONNECT string, message string) {
 }
 
 func unicastSend(destination string, message message) {
-	fmt.Println("Connecting to destination", destination, message.destinationHostAddreess)
-	createTCPClient(message.destinationHostAddreess, message.messageContent)
+	createTCPClient(message.destinationHostAddreess, message)
 
 }
 
