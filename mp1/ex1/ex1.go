@@ -48,7 +48,8 @@ func main() {
 
 		}
 		destinationAdress := configData[destination][1]
-		unicastSend(destination, messageReceived, destinationAdress)
+		m := message{messageReceived, destination, destinationAdress}
+		unicastSend(destination, m)
 
 	}
 	//go createTCPClient(ip)
@@ -56,6 +57,12 @@ func main() {
 	// Temporary
 	time.Sleep(time.Second * 1000)
 
+}
+
+type message struct {
+	messageContent          string
+	destinationID           string
+	destinationHostAddreess string
 }
 
 // Lines 40-46 & 52-54 from https://stackoverflow.com/questions/8757389/reading-a-file-line-by-line-in-go
@@ -161,9 +168,9 @@ func createTCPClient(CONNECT string, message string) {
 
 }
 
-func unicastSend(destination string, message string, hostAddress string) {
-	fmt.Println("Connecting to destination", destination, hostAddress)
-	createTCPClient(hostAddress, message)
+func unicastSend(destination string, message message) {
+	fmt.Println("Connecting to destination", destination, message.destinationHostAddreess)
+	createTCPClient(message.destinationHostAddreess, message.messageContent)
 
 }
 
