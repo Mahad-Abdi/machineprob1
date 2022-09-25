@@ -25,7 +25,7 @@ func main() {
 	port := ":" + configData[lineNumber][2]
 	println(port)
 
-	// I'm trying to combine the TCPServer and TCPClient into one file, he said that they both can be in the same file
+	// Finish the work for go routine
 	go createTCPServer(port)
 	println("Please provide a command in the form send destination message or STOP to stop proccess")
 	for {
@@ -34,6 +34,7 @@ func main() {
 		text, _ := reader.ReadString('\n')
 		textParsed := parseLine(text)
 		//destination := textParsed[1]
+		//Fix this - change ot a while loop
 		if len(textParsed) < 3 {
 			println("Please provide a command in the form send destination message or STOP to stop proccess")
 			return
@@ -48,14 +49,15 @@ func main() {
 
 		}
 		destinationAdress := configData[destination][1]
+		//minDelay, _ := strconv.ParseFloat(configData["0"][0], 64)
+		//maxDelay, _ := strconv.ParseFloat(configData["0"][1], 64)
+		//// Delay code comes from here https://stackoverflow.com/questions/49746992/generate-random-float64-numbers-in-specific-range-using-golang
+		//delay := minDelay + rand.Float64()*(maxDelay-minDelay)
 		m := message{messageReceived, destination, destinationAdress}
 		unicastSend(destination, m)
 
 	}
 	//go createTCPClient(ip)
-
-	// Temporary
-	time.Sleep(time.Second * 1000)
 
 }
 
@@ -162,7 +164,24 @@ func createTCPClient(CONNECT string, message string) {
 		message, _ = bufio.NewReader(c).ReadString('\n')
 		fmt.Println("->: Received response from ", message)
 		fmt.Print(">> ")
+
 		message, _ = reader.ReadString('\n')
+		//Redundant
+		messageParsed := parseLine(message)
+		if len(messageParsed) < 3 {
+			println("Please provide a command in the form send destination message or STOP to stop proccess")
+			return
+		}
+		// add error catching later to check if the destination is same as original
+		//destination := messageParsed[1]
+		messageReceived := messageParsed[2]
+		if len(messageParsed) > 2 {
+			for i := 3; i < len(messageParsed); i++ {
+				messageReceived = messageReceived + " " + messageParsed[i]
+			}
+
+		}
+		message = messageReceived
 
 	}
 
