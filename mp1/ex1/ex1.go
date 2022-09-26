@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+var (
+	configData = readConfig()
+)
+
 func main() {
 
 	arguments := os.Args
@@ -19,11 +23,9 @@ func main() {
 		return
 	}
 	lineNumber := arguments[1]
-	configData := readConfig()
 	//id := configData[lineNumber][0]
 	//hostAddress := configData[lineNumber][1]
 	port := ":" + configData[lineNumber][2]
-	println(port)
 
 	// Finish the work for go routine
 	go createTCPServer(port)
@@ -53,8 +55,14 @@ func main() {
 		//maxDelay, _ := strconv.ParseFloat(configData["0"][1], 64)
 		//// Delay code comes from here https://stackoverflow.com/questions/49746992/generate-random-float64-numbers-in-specific-range-using-golang
 		//delay := minDelay + rand.Float64()*(maxDelay-minDelay)
-		m := message{messageReceived, destination, destinationAdress}
-		unicastSend(destination, m)
+		m := message{messageReceived, lineNumber, destination, destinationAdress}
+		delays := configData["0"]
+		delay, err := sliceAtoi(delays)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		createTCPClient(m, delay)
 
 	}
 	//go createTCPClient(ip)
@@ -62,9 +70,10 @@ func main() {
 }
 
 type message struct {
-	messageContent          string
-	destinationID           string
-	destinationHostAddreess string
+	messageContent     string
+	senderID           string
+	destinationID      string
+	destinationAddress string
 }
 
 // Lines 40-46 & 52-54 from https://stackoverflow.com/questions/8757389/reading-a-file-line-by-line-in-go
@@ -97,6 +106,17 @@ func readConfig() map[string][]string {
 func parseLine(line string) []string {
 	return strings.Split(line, " ")
 }
+func sliceAtoi(str []string) ([]int, error) {
+	intarr := make([]int, 0, len(str))
+	for _, a := range str {
+		i, err := strconv.Atoi(a)
+		if err != nil {
+			return intarr, err
+		}
+		intarr = append(intarr, i)
+	}
+	return intarr, nil
+}
 
 /*
 	Creates TCP server using first command line argument most of the code is from
@@ -112,6 +132,7 @@ func createTCPServer(PORT string) {
 	defer l.Close()
 
 	c, err := l.Accept()
+	fmt.Println("Remote address", c.RemoteAddr())
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -142,31 +163,21 @@ func createTCPServer(PORT string) {
 
 https://www.linode.com/docs/guides/developing-udp-and-tcp-clients-and-servers-in-go/
 */
-func createTCPClient(CONNECT string, inputMessage message) {
+func createTCPClient(inputMessage message, delay []int) {
 	message := inputMessage.messageContent
-	id := inputMessage.destinationID
+	CONNECT := inputMessage.destinationAddress
 
 	c, err := net.Dial("tcp", CONNECT)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("Dialed", CONNECT)
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		_, err := fmt.Fprintf(c, message+"\n")
-		if err != nil {
-			fmt.Println("Error with client", err)
-			return
-		}
-		fmt.Println("Sent ", message, "to process", id, " system time is ", time.Now())
-		if strings.TrimSpace(string(message)) == "STOP" {
-			fmt.Println("TCP client exiting...")
-			return
-		}
-
+		fmt.Println("C ", c)
+		fmt.Println("Dialed", inputMessage.destinationAddress)
+		unicastSend(c, inputMessage, delay)
 		fmt.Print(">> ")
-
 		message, _ = reader.ReadString('\n')
 		//Redundant, here is where we check if the input destination is the same
 		messageParsed := parseLine(message)
@@ -183,14 +194,35 @@ func createTCPClient(CONNECT string, inputMessage message) {
 			}
 
 		}
-		message = messageReceived
+		if messageParsed[1] != inputMessage.destinationID {
+			inputMessage.messageContent = messageReceived
+			inputMessage.destinationID = messageParsed[1]
+			inputMessage.destinationAddress = configData[messageParsed[1]][1]
+			c, err = net.Dial("tcp", inputMessage.destinationAddress)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 
+		}
 	}
 
 }
 
-func unicastSend(destination string, message message) {
-	createTCPClient(message.destinationHostAddreess, message)
+func unicastSend(c net.Conn, inputMessage message, delay []int) {
+	fmt.Println(delay[0])
+	message := inputMessage.messageContent
+	id := inputMessage.destinationID
+	_, err := fmt.Fprintf(c, message+"\n")
+	if err != nil {
+		fmt.Println("Error with client", err)
+		return
+	}
+	fmt.Println("Sent ", message, "to process", id, " system time is ", time.Now())
+	if strings.TrimSpace(string(message)) == "STOP" {
+		fmt.Println("TCP client exiting...")
+		return
+	}
 
 }
 
